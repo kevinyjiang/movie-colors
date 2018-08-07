@@ -11,6 +11,22 @@ Progress bar
 Option to name output
 """
 
+# Average of every pixel in a frame
+def average_regular(img):
+	channels = [0,0,0]
+
+	for x in range(0, img.shape[0]):
+		for y in range(0, img.shape[1]):
+			for i in range(0,3):
+				channels[i] += img[x,y][i]
+
+	total = (img.shape[0]*img.shape[1])
+
+	for i in range(0,3):
+		channels[i] /= total
+
+	return channels
+
 # Randomly samples pixels from a sliding window
 def average_sampling(img, step):
 	channels = [0,0,0]
@@ -27,22 +43,7 @@ def average_sampling(img, step):
 
 	return channels
 
-# Average of every pixel
-def average_regular(img):
-	channels = [0,0,0]
-
-	for x in range(0, img.shape[0]):
-		for y in range(0, img.shape[1]):
-			for i in range(0,3):
-				channels[i] += img[x,y][i]
-
-	total = (img.shape[0]*img.shape[1])
-
-	for i in range(0,3):
-		channels[i] /= total
-
-	return channels
-
+# Add black vignetting at the top and bottom of an image
 def vignette(color, height, current):
 	if current < height*.20:
 		return color*(current/(height*.20))
@@ -56,7 +57,7 @@ if __name__ == '__main__':
 	parser.add_argument('filename', help='Input file name.')
 	parser.add_argument('--no-sampling', help='Disable random sampling when calculating average color.',
 						action='store_true')
-	parser.add_argument('--interval', help='Number of frames skipped after calculating a column.',
+	parser.add_argument('--interval', help='Numbecor of frames skipped after calculating a column.',
 						type=int, default=5)
 	parser.add_argument('--width', help='Width of output image', type=int, default=1920)
 	parser.add_argument('--height', help='Height of output image', type=int, default=1080)
@@ -76,18 +77,22 @@ if __name__ == '__main__':
 	frame = 0
 	success = True
 
+	# While there are more frames
 	while success:
-		cap.set(1, frame)
+		# Try to read next frame
 		success, img = cap.read()
 
+		# Break if we've passed the last frame
 		if not success:
 			break
 
+		# Calculate average color of current frame
 		if args.no_sampling:
 			avg = average_regular(img)
 		else:
 			avg = average_sampling(img,50)
 
+		# Append result to output image
 		for i in range(0, height):
 			for j in range(0,3):
 				if frame+interval > length:
@@ -98,7 +103,10 @@ if __name__ == '__main__':
 						result[i,k,j] = avg[j]
 		print('{} / {}'.format(frame, length))
 
+		# Increment current frame number
 		frame += interval
+		cap.set(1, frame)
 
+	# Write image
 	result = cv2.resize(result, (width, height), cv2.INTER_CUBIC)
 	cv2.imwrite('{}.png'.format(os.path.splitext(args.filename)[0]), result)
